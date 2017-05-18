@@ -23,7 +23,6 @@ size_of_global_color_table = packed_field[5..7]
 # The global color table if present
 global_color_table = nil
 if global_color_table_flag
-  binding.pry
   gc_table_size = 3 * 2**((size_of_global_color_table).to_i(2)+1)
   global_color_table_end = (gc_table_size * 8) + end_of_headers
   global_color_table = bits[end_of_headers..global_color_table_end]
@@ -109,29 +108,32 @@ end
 # Local color table
 # exactly the same as the global color table
 def color_table(bits, size)
-  color_table = {}
-  # for size, add color
-  # It would be nead if we named the entries in the hash dynamically
-  # ie color0, color1, color2, color3, etc.
+  color_table = {
+
+  }
   return color_table
 end
 
-# Image data
 def image_data bits
   image_data = {
     lzw_minimum_code_size: bits[0..7],
-    sub_blocks: {},
+    sub_blocks: [],
   }
-  # TODO: Loop for sub blocks
-  # First gives use the size of the subblock
-  # End when we get to something that has a subblock size of x/00
-  # NOTE: It will probably need another method for adding the subblocks
+  bits = bits[8..-1]
+
+  while (bits[0..7] != "00000000")
+    # subtract 1 for index, add 8 to include first byte containing the size
+    block_size = (8 * bits[0..7].to_i(2)) + 7
+    image_data[:sub_blocks].push bits[0..block_size]
+    bits = bits[(block_size+ 1)..-1]
+  end
+  image_data[:sub_blocks].push bits # should just all be zeros
   return image_data
 end
 
 # TODO: read the rest of the bits checking first for the extensions
 
-# Trailer, gif ends with x3B
+# Trailer, gif ends with 0x3B
 def b_to_h binary_string
   "0x%02x" % binary_string.to_i(2)
 end
