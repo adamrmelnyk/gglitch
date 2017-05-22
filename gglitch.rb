@@ -1,10 +1,20 @@
 class Gif
   # Header and LFD are a fixed size
   END_OF_HEADER_AND_LFD = 103
+  GIF_TRAILER = "00111011" # 0x3B
+  IMAGE_SEPARATOR = "00101100" # 0x2C
+  EXTENSION_INTRODUCER = "00100001" # 0x21
+
+  # Extension Labels
+  GRAPHICS_CONTROL_EXTENSION_LABEL = "11111001"
+  PLAIN_TEXT_LABEL = "00000001" # 0x01
+  APPLICATION_EXTENSION_LABEL = "11111111" # 0xFF
+  COMMENT_EXTENSION_LABEL = "11111110" # 0xFE
 
   attr_accessor :header, :logical_screen_descriptor, :canvas_width,
                 :canvas_height, :packed_field, :background_color_index, :pixel_aspect_ratio,
-                :global_color_table_flag, :color_resolution, :sort_flag, :size_of_global_color_table
+                :global_color_table_flag, :color_resolution, :sort_flag,
+                :size_of_global_color_table, :global_color_table, :tail
 
   def initialize(file_name)
     s = File.binread(file_name)
@@ -21,20 +31,61 @@ class Gif
     @color_resolution = packed_field[1..3]
     @sort_flag = packed_field[4]
     @size_of_global_color_table = packed_field[5..7]
-    @global_color_table = set_global_color_table(bits) if @global_color_table_flag
-    # TODO: Set the bit where we should start reading or set bits to just be the rest of bits.
 
-    # TODO: Construct the rest of the file
+    if @global_color_table_flag
+      @global_color_table = color_table_parser(bits[END_OF_HEADER_AND_LFD..-1], @size_of_global_color_table)
+    end
 
+    @tail = [] # An Array of hashes containing the remainder of the file broken into blocks
+
+    bits = bits[]
+    # TODO: Set the bit where we should start reading
+    unless (bits[0..7] == GIF_TRAILER)
+      if bits[0..7] == EXTENSION_INTRODUCER
+        case bits[7..15]
+        when GRAPHICS_CONTROL_EXTENSION_LABEL
+          graphics_control_extension_parser bits
+          # TODO: set bits
+        when PLAIN_TEXT_LABEL
+          plain_text_extension_parser bits
+          # TODO: set bits
+        when APPLICATION_EXTENSION_LABEL
+          application_extension_parser bits
+          # TODO: set bits
+        when COMMENT_EXTENSION_LABEL
+          comment_extension_parser bits
+          # TODO: set bits
+        end
+      elsif bits[0..7] == IMAGE_SEPARATOR
+        image_descriptor = image_descriptor_parser bits
+        bits = bits[80..-1]
+        local_color_table = nil
+        if image_descriptor[:packed_field][:local_color_table_flag]
+          local_color_table = color_table_parser(bits, image_descriptor[:packed_field][:size_of_local_color_table])
+          bits[table_size()]
+        end
+        image_data = image_data_parser bits
+        data = {
+          image_descriptor: image_descriptor,
+          local_color_table: local_color_table,
+          image_data: image_data,
+        }
+        @tail.push data
+        # TODO: Need a way to determine where the image data ended
+        # TODO: set bits and reenter loop
+      end
+    end
   end
 
-  def set_global_color_table bits
-    gc_table_size = 3 * 2**((size_of_global_color_table).to_i(2)+1)
-    global_color_table_end = (gc_table_size * 8) + END_OF_HEADER_AND_LFD
-    global_color_table = bits[END_OF_HEADER_AND_LFD..global_color_table_end]
-    end_of_headers = global_color_table_end
+  def table_size s
+    (3 * 2**((s).to_i(2) + 1) * 8)
+  end
 
-    # TODO: return the global color table
+  # Local color table
+  # exactly the same as the global color table
+  def color_table_parser(bits, size)
+    color_table_size = table_size(size)
+    bits[0..color_table_size]
   end
 
   # Graphics control extension
@@ -90,9 +141,9 @@ class Gif
 
   # Image Descriptor
   # 0x2C
-  def image_descriptor bits
+  def image_descriptor_parser bits
     {
-      image_seperator: bits[0..15],
+      image_separator: bits[0..15],
       image_left: bits[16..31],
       image_top: bits[32..47],
       image_width: bits[48..63],
@@ -107,16 +158,7 @@ class Gif
     }
   end
 
-  # Local color table
-  # exactly the same as the global color table
-  def color_table(bits, size)
-    color_table = {
-      # TODO: Fill the color table
-    }
-    return color_table
-  end
-
-  def image_data bits
+  def image_data_parser bits
     image_data = {
       lzw_minimum_code_size: bits[0..7],
       sub_blocks: [],
@@ -133,7 +175,6 @@ class Gif
     return image_data
   end
 
-  # Trailer, gif ends with 0x3B
   def b_to_h binary_string
     "0x%02x" % binary_string.to_i(2)
   end
