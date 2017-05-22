@@ -50,15 +50,15 @@ class Gif
         when PLAIN_TEXT_LABEL
           plain_text_extension = plain_text_extension_parser bits
           @tail.push plain_text_extension
-          bits = bits[plain_text_extension[:total_block_size]]
+          bits = bits[plain_text_extension[:total_block_size]..-1]
         when APPLICATION_EXTENSION_LABEL
           application_extension = application_extension_parser bits
           @tail.push application_extension
-          bits = bits[application_extension[:total_block_size]]
+          bits = bits[application_extension[:total_block_size]..-1]
         when COMMENT_EXTENSION_LABEL
           comment_extension = comment_extension_parser bits
           @tail.push comment_extension
-          bits = bits[comment_extension[:total_block_size]]
+          bits = bits[comment_extension[:total_block_size]..-1]
         end
       elsif bits[0..7] == IMAGE_SEPARATOR
         image_descriptor = image_descriptor_parser bits
