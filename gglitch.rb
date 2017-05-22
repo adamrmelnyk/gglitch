@@ -34,27 +34,31 @@ class Gif
 
     if @global_color_table_flag
       @global_color_table = color_table_parser(bits[END_OF_HEADER_AND_LFD..-1], @size_of_global_color_table)
+      bits = bits[(@global_color_table.size + 1)..-1]
+    else
+      bits = bits[(END_OF_HEADER_AND_LFD + 1)..-1]
     end
-
     @tail = [] # An Array of hashes containing the remainder of the file broken into blocks
 
-    bits = bits[]
-    # TODO: Set the bit where we should start reading
     unless (bits[0..7] == GIF_TRAILER)
       if bits[0..7] == EXTENSION_INTRODUCER
         case bits[7..15]
         when GRAPHICS_CONTROL_EXTENSION_LABEL
-          graphics_control_extension_parser bits
-          # TODO: set bits
+          graphics_control_extension = graphics_control_extension_parser bits
+          @tail.push graphics_control_extension
+          bits = bits[graphics_control_extension[:total_block_size]..-1]
         when PLAIN_TEXT_LABEL
-          plain_text_extension_parser bits
-          # TODO: set bits
+          plain_text_extension = plain_text_extension_parser bits
+          @tail.push plain_text_extension
+          bits = bits[plain_text_extension[:total_block_size]]
         when APPLICATION_EXTENSION_LABEL
-          application_extension_parser bits
-          # TODO: set bits
+          application_extension = application_extension_parser bits
+          @tail.push application_extension
+          bits = bits[application_extension[:total_block_size]]
         when COMMENT_EXTENSION_LABEL
-          comment_extension_parser bits
-          # TODO: set bits
+          comment_extension = comment_extension_parser bits
+          @tail.push comment_extension
+          bits = bits[comment_extension[:total_block_size]]
         end
       elsif bits[0..7] == IMAGE_SEPARATOR
         image_descriptor = image_descriptor_parser bits
@@ -104,17 +108,20 @@ class Gif
       delay_time: bits[32..47],
       transparent_colour_index: bits[48..55],
       block_terminator: bits[56..63],
+      total_block_size: 64
     }
   end
 
   # Plain Text Extension
   # 0x01
   def plain_text_extension_parser bits
+    # TODO: set size since it's faster than doing it dynamically
     {
       extension_introducer: bits[0..7],
       plain_text_label: bits[7..15],
       block_size_until_text: bits[16..23], # blocks to skip until actual text data
       sub_blocks: {},
+      # total_block_size: 0, TODO: Set the block size
     }
   end
 
@@ -126,6 +133,7 @@ class Gif
       application_extension_label: bits[7..15],
       application_block_length: bits[16..23], # We can ignore these bytes 
       sub_blocks: {},
+      # total_block_size: 0, TODO: Set the block size
     }
   end
 
@@ -136,6 +144,7 @@ class Gif
       extension_introducer: bits[0..7],
       comment_extension_label: bits[7..15],
       sub_blocks: {},
+      # total_block_size: 0, TODO: Set the block size
     }
   end
 
@@ -178,10 +187,4 @@ class Gif
   def b_to_h binary_string
     "0x%02x" % binary_string.to_i(2)
   end
-end
-
-## Optional Extensions
-# 0x21
-def which_extension byte
-  # TODO: Create all the cases for each type of byte
 end
