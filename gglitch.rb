@@ -112,39 +112,56 @@ class Gif
     }
   end
 
+  def sub_blocks_parser bits
+    sub_blocks = []
+    while (bits[0..7] != "00000000")
+      # subtract 1 for index, add 8 to include first byte containing the size
+      block_size = (8 * bits[0..7].to_i(2)) + 7
+      sub_blocks.push bits[0..block_size]
+      bits = bits[(block_size+ 1)..-1]
+    end
+    sub_blocks.push bits # should just all be zeros
+  end
+
   # Plain Text Extension
   # 0x01
   def plain_text_extension_parser bits
-    # TODO: set size since it's faster than doing it dynamically
-    {
+    # TODO: Set the total block size
+    plain_text_data = {
       extension_introducer: bits[0..7],
       plain_text_label: bits[7..15],
       block_size_until_text: bits[16..23], # blocks to skip until actual text data
-      sub_blocks: {},
-      # total_block_size: 0, TODO: Set the block size
+      sub_blocks: [],
+      total_block_size: 0,
     }
+    b_size = 24 + (8 * plain_text_data[:block_size_until_text].to_i(2))
+    bits = bits[b_size..-1]
+    plain_text_data[:sub_blocks] = sub_blocks_parser(bits)
+    plain_text_data
   end
 
   # Application Extension
   # 0xFF
   def application_extension_parser bits
+    # TODO: Set the total block size
     {
       extension_introducer: bits[0..7],
       application_extension_label: bits[7..15],
       application_block_length: bits[16..23], # We can ignore these bytes 
-      sub_blocks: {},
-      # total_block_size: 0, TODO: Set the block size
+      sub_blocks: [],
+      total_block_size: 0,
     }
   end
 
   # Comment Extension
   # 0xFE
   def comment_extension_parser
+    # TODO: Set the total Block size
     {
       extension_introducer: bits[0..7],
       comment_extension_label: bits[7..15],
-      sub_blocks: {},
-      # total_block_size: 0, TODO: Set the block size
+      sub_blocks: [],
+      total_block_size: 0,
     }
   end
 
@@ -173,17 +190,11 @@ class Gif
       sub_blocks: [],
     }
     bits = bits[8..-1]
-
-    while (bits[0..7] != "00000000")
-      # subtract 1 for index, add 8 to include first byte containing the size
-      block_size = (8 * bits[0..7].to_i(2)) + 7
-      image_data[:sub_blocks].push bits[0..block_size]
-      bits = bits[(block_size+ 1)..-1]
-    end
-    image_data[:sub_blocks].push bits # should just all be zeros
+    image_data[:sub_blocks] = sub_blocks_parser(bits)
     return image_data
   end
 
+  # For Testing
   def b_to_h binary_string
     "0x%02x" % binary_string.to_i(2)
   end
