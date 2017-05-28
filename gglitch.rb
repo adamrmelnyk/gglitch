@@ -144,25 +144,32 @@ class Gif
   # 0xFF
   def application_extension_parser bits
     # TODO: Set the total block size
-    {
+    application_data = {
       extension_introducer: bits[0..7],
       application_extension_label: bits[7..15],
       application_block_length: bits[16..23], # We can ignore these bytes 
       sub_blocks: [],
       total_block_size: 0,
     }
+    b_size = 24 + (8 * application_data[:application_block_length].to_i(2))
+    bits = bits[b_size..-1]
+    application_data[:sub_blocks] = sub_blocks_parser bits
+    application_data
   end
 
   # Comment Extension
   # 0xFE
-  def comment_extension_parser
+  def comment_extension_parser bits
     # TODO: Set the total Block size
-    {
+    comment_data = {
       extension_introducer: bits[0..7],
       comment_extension_label: bits[7..15],
       sub_blocks: [],
       total_block_size: 0,
     }
+    bits = bits[16..-1]
+    comment_data[:sub_blocks] = sub_blocks_parser bits
+    comment_data
   end
 
   # Image Descriptor
@@ -191,7 +198,7 @@ class Gif
     }
     bits = bits[8..-1]
     image_data[:sub_blocks] = sub_blocks_parser(bits)
-    return image_data
+    image_data
   end
 
   # For Testing
