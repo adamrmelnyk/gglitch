@@ -47,14 +47,10 @@ class Gif
           graphics_control_extension = graphics_control_extension_parser bits
           @tail.push graphics_control_extension
           bits = bits[graphics_control_extension[:total_block_size]..-1]
-        when PLAIN_TEXT_LABEL
-          plain_text_extension = plain_text_extension_parser bits
-          @tail.push plain_text_extension
-          bits = bits[plain_text_extension[:total_block_size]..-1]
-        when APPLICATION_EXTENSION_LABEL
-          application_extension = application_extension_parser bits
-          @tail.push application_extension
-          bits = bits[application_extension[:total_block_size]..-1]
+        when PLAIN_TEXT_LABEL, APPLICATION_EXTENSION_LABEL
+          extension = extension_parser bits
+          @tail.push extension
+          bits = bits[extension[:total_block_size]..-1]
         when COMMENT_EXTENSION_LABEL
           comment_extension = comment_extension_parser bits
           @tail.push comment_extension
@@ -85,8 +81,7 @@ class Gif
     (3 * 2**((s).to_i(2) + 1) * 8)
   end
 
-  # Local color table
-  # exactly the same as the global color table
+  # Color table
   def color_table_parser(bits, size)
     color_table_size = table_size(size)
     bits[0..color_table_size]
@@ -97,7 +92,7 @@ class Gif
   def graphics_control_extension_parser bits
     {
       extension_introducer: bits[0..7],
-      graphic_control_label: bits[8..15],
+      label: bits[8..15],
       byte_size: bits[16..23],
       packed_field: {
         reserved_for_future_use: bits[24..26],
@@ -123,38 +118,21 @@ class Gif
     sub_blocks.push bits # should just all be zeros
   end
 
-  # Plain Text Extension
-  # 0x01
-  def plain_text_extension_parser bits
+  # Extension
+  # 0x01 || 0xFF
+  def extension_parser bits
     # TODO: Set the total block size
-    plain_text_data = {
+    data = {
       extension_introducer: bits[0..7],
-      plain_text_label: bits[7..15],
-      block_size_until_text: bits[16..23], # blocks to skip until actual text data
+      label: bits[7..15],
+      skipped_block_length: bits[16..23],
       sub_blocks: [],
       total_block_size: 0,
     }
-    b_size = 24 + (8 * plain_text_data[:block_size_until_text].to_i(2))
+    b_size = 24 + (8 * data[:skipped_block_length].to_i(2))
     bits = bits[b_size..-1]
-    plain_text_data[:sub_blocks] = sub_blocks_parser(bits)
-    plain_text_data
-  end
-
-  # Application Extension
-  # 0xFF
-  def application_extension_parser bits
-    # TODO: Set the total block size
-    application_data = {
-      extension_introducer: bits[0..7],
-      application_extension_label: bits[7..15],
-      application_block_length: bits[16..23], # We can ignore these bytes 
-      sub_blocks: [],
-      total_block_size: 0,
-    }
-    b_size = 24 + (8 * application_data[:application_block_length].to_i(2))
-    bits = bits[b_size..-1]
-    application_data[:sub_blocks] = sub_blocks_parser bits
-    application_data
+    data[:sub_blocks] = sub_blocks_parser bits
+    data
   end
 
   # Comment Extension
@@ -163,7 +141,7 @@ class Gif
     # TODO: Set the total Block size
     comment_data = {
       extension_introducer: bits[0..7],
-      comment_extension_label: bits[7..15],
+      label: bits[7..15],
       sub_blocks: [],
       total_block_size: 0,
     }
