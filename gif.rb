@@ -1,5 +1,4 @@
 class Gif
-  require 'pry'
   # Header and LFD are a fixed size
   END_OF_HEADER_AND_LFD = 103
   GIF_TRAILER = "00111011" # 0x3B
