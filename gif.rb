@@ -32,17 +32,16 @@ class Gif
     @sort_flag = packed_field[4]
     @size_of_global_color_table = packed_field[5..7]
 
-    if @global_color_table_flag
-      @global_color_table = color_table_parser(bits[END_OF_HEADER_AND_LFD..-1], @size_of_global_color_table)
-      bits = bits[(@global_color_table.size + 1)..-1]
-    else
-      bits = bits[(END_OF_HEADER_AND_LFD + 1)..-1]
+    bits = bits[(END_OF_HEADER_AND_LFD + 1)..-1]
+    if @global_color_table_flag == "1"
+      @global_color_table = color_table_parser(bits, @size_of_global_color_table)
+      bits = bits[@global_color_table.size..-1]
     end
-    @tail = [] # An Array of hashes containing the remainder of the file broken into blocks
 
-    unless (bits[0..7] == GIF_TRAILER)
+    @tail = [] # An Array of hashes containing the remainder of the file broken into blocks
+    until (bits[0..7] == GIF_TRAILER)
       if bits[0..7] == EXTENSION_INTRODUCER
-        case bits[7..15]
+        case bits[8..15]
         when GRAPHICS_CONTROL_EXTENSION_LABEL
           graphics_control_extension = graphics_control_extension_parser bits
           @tail.push graphics_control_extension
@@ -58,11 +57,11 @@ class Gif
         end
       elsif bits[0..7] == IMAGE_SEPARATOR
         image_descriptor = image_descriptor_parser bits
-        bits = bits[80..-1]
+        bits = bits[image_descriptor[:total_block_size]..-1]
         local_color_table = nil
-        if image_descriptor[:packed_field][:local_color_table_flag]
+        if image_descriptor[:packed_field][:local_color_table_flag] == "1"
           local_color_table = color_table_parser(bits, image_descriptor[:packed_field][:size_of_local_color_table])
-          bits[table_size()]
+          bits = bits[local_color_table.size..-1]
         end
         image_data = image_data_parser bits
         data = {
@@ -71,8 +70,7 @@ class Gif
           image_data: image_data,
         }
         @tail.push data
-        # TODO: Need a way to determine where the image data ended
-        # TODO: set bits and reenter loop
+        bits = bits[data[:image_data][:total_block_size]..-1]
       end
     end
   end
@@ -83,8 +81,8 @@ class Gif
 
   # Color table
   def color_table_parser(bits, size)
-    color_table_size = table_size(size)
-    bits[0..color_table_size]
+    color_table_size = table_size size
+    bits[0..(color_table_size - 1)]
   end
 
   # Graphics control extension
@@ -113,9 +111,9 @@ class Gif
       # subtract 1 for index, add 8 to include first byte containing the size
       block_size = (8 * bits[0..7].to_i(2)) + 7
       sub_blocks.push bits[0..block_size]
-      bits = bits[(block_size+ 1)..-1]
+      bits = bits[(block_size + 1)..-1]
     end
-    sub_blocks.push bits # should just all be zeros
+    sub_blocks.push bits[0..7]
   end
 
   # Extension
@@ -131,7 +129,7 @@ class Gif
     b_size = 24 + (8 * data[:skipped_block_length].to_i(2))
     bits = bits[b_size..-1]
     data[:sub_blocks] = sub_blocks_parser bits
-    data[:block_size] = 24 + sub_blocks.join.size
+    data[:total_block_size] = 24 + data[:sub_blocks].join.size
     data
   end
 
@@ -166,19 +164,24 @@ class Gif
         reserved_for_future_use: bits[75..76],
         size_of_local_color_table: bits[77..79],
       },
+      total_block_size: 80,
     }
   end
 
   def image_data_parser bits
-    image_data = {
+    data = {
       lzw_minimum_code_size: bits[0..7],
       sub_blocks: [],
       total_block_size: 0,
     }
     bits = bits[8..-1]
-    image_data[:sub_blocks] = sub_blocks_parser bits
-    image_data[:total_block_size] = 8 + sub_blocks.join.size
-    image_data
+    data[:sub_blocks] = sub_blocks_parser bits
+    data[:total_block_size] = 8 + data[:sub_blocks].join.size
+    data
+  end
+
+  def rebuild new_file_name
+    # TODO: Create a gif using the gif data
   end
 
   # For Testing
