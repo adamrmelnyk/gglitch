@@ -121,7 +121,6 @@ class Gif
   # Extension
   # 0x01 || 0xFF
   def extension_parser bits
-    # TODO: Set the total block size
     data = {
       extension_introducer: bits[0..7],
       label: bits[7..15],
@@ -132,22 +131,23 @@ class Gif
     b_size = 24 + (8 * data[:skipped_block_length].to_i(2))
     bits = bits[b_size..-1]
     data[:sub_blocks] = sub_blocks_parser bits
+    data[:block_size] = 24 + sub_blocks.join.size
     data
   end
 
   # Comment Extension
   # 0xFE
   def comment_extension_parser bits
-    # TODO: Set the total Block size
-    comment_data = {
+    data = {
       extension_introducer: bits[0..7],
       label: bits[7..15],
       sub_blocks: [],
       total_block_size: 0,
     }
     bits = bits[16..-1]
-    comment_data[:sub_blocks] = sub_blocks_parser bits
-    comment_data
+    data[:sub_blocks] = sub_blocks_parser bits
+    data[:total_block_size] = 16 + data[:sub_blocks].join.size
+    data
   end
 
   # Image Descriptor
@@ -173,9 +173,11 @@ class Gif
     image_data = {
       lzw_minimum_code_size: bits[0..7],
       sub_blocks: [],
+      total_block_size: 0,
     }
     bits = bits[8..-1]
-    image_data[:sub_blocks] = sub_blocks_parser(bits)
+    image_data[:sub_blocks] = sub_blocks_parser bits
+    image_data[:total_block_size] = 8 + sub_blocks.join.size
     image_data
   end
 
