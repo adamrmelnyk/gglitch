@@ -111,16 +111,16 @@ class Gif
   end
 
   def graphics_control_extension_builder block
-    s = block[:extension_introducer]
-    s += block[:label]
-    s += block[:byte_size]
-    s += block[:packed_field][:reserved_for_future_use]
-    s += block[:packed_field][:disposal_method]
-    s += block[:packed_field][:user_input_flag]
-    s += block[:packed_field][:transparent_color_flag]
-    s += block[:delay_time]
-    s += block[:transparent_colour_index]
-    s += block[:block_terminator]
+    bit_string = block[:extension_introducer]
+    bit_string += block[:label]
+    bit_string += block[:byte_size]
+    bit_string += block[:packed_field][:reserved_for_future_use]
+    bit_string += block[:packed_field][:disposal_method]
+    bit_string += block[:packed_field][:user_input_flag]
+    bit_string += block[:packed_field][:transparent_color_flag]
+    bit_string += block[:delay_time]
+    bit_string += block[:transparent_colour_index]
+    bit_string += block[:block_terminator]
   end
 
   def sub_blocks_parser bits
@@ -153,12 +153,12 @@ class Gif
   end
 
   def extension_builder block
-    s = block[:extension_introducer]
-    s += block[:label]
-    s += block[:skipped_block_length]
-    s += block[:skipped_bits]
-    block[:sub_blocks].each { |sb| s += sb }
-    s
+    bit_string = block[:extension_introducer]
+    bit_string += block[:label]
+    bit_string += block[:skipped_block_length]
+    bit_string += block[:skipped_bits]
+    block[:sub_blocks].each { |sb| bit_string += sb }
+    bit_string
   end
 
   # Comment Extension
@@ -177,10 +177,10 @@ class Gif
   end
 
   def comment_extension_builder block
-    s = block[:extension_introducer]
-    s += block[:label]
-    block[:sub_blocks].each { |sb| s += sb }
-    s
+    bit_string = block[:extension_introducer]
+    bit_string += block[:label]
+    block[:sub_blocks].each { |sb| bit_string += sb }
+    bit_string
   end
 
   # Image Descriptor
@@ -204,16 +204,16 @@ class Gif
   end
 
   def image_descriptor_builder block
-    s = block[:image_separator]
-    s += block[:image_left]
-    s += block[:image_top]
-    s += block[:image_width]
-    s += block[:image_height]
-    s += block[:packed_field][:local_color_table_flag]
-    s += block[:packed_field][:interlace_flag]
-    s += block[:packed_field][:sort_flag]
-    s += block[:packed_field][:reserved_for_future_use]
-    s += block[:packed_field][:size_of_local_color_table]
+    bit_string = block[:image_separator]
+    bit_string += block[:image_left]
+    bit_string += block[:image_top]
+    bit_string += block[:image_width]
+    bit_string += block[:image_height]
+    bit_string += block[:packed_field][:local_color_table_flag]
+    bit_string += block[:packed_field][:interlace_flag]
+    bit_string += block[:packed_field][:sort_flag]
+    bit_string += block[:packed_field][:reserved_for_future_use]
+    bit_string += block[:packed_field][:size_of_local_color_table]
   end
 
   def image_data_parser bits
@@ -229,9 +229,9 @@ class Gif
   end
 
   def image_data_builder block
-    s = block[:lzw_minimum_code_size]
-    block[:sub_blocks].each { |sb| s += sb }
-    s
+    bit_string = block[:lzw_minimum_code_size]
+    block[:sub_blocks].each { |sb| bit_string += sb }
+    bit_string
   end
 
   def rebuild new_file_name
