@@ -19,7 +19,7 @@ class Gif
   def initialize(file_name)
     s = File.binread(file_name)
     bits = s.unpack("B*")[0]
-    raise "Unable to parse File Gif must be GIF89a, found: #{b_to_h(bits[0..47])}" unless b_to_h(bits[0..47]) == "0x474946383961"
+    raise "Error: Unable to parse file. Gif must be GIF89a, found: #{b_to_h(bits[0..47])}" unless b_to_h(bits[0..47]) == "0x474946383961"
 
     @header = bits[0..47]
     @logical_screen_descriptor = bits[48..103]
