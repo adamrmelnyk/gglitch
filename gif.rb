@@ -19,6 +19,7 @@ class Gif
   def initialize(file_name)
     s = File.binread(file_name)
     bits = s.unpack("B*")[0]
+    raise "Error: Unable to parse file. Gif must be GIF89a, found: #{b_to_h(bits[0..47])}" unless b_to_h(bits[0..47]) == "0x474946383961"
 
     @header = bits[0..47]
     @logical_screen_descriptor = bits[48..103]
@@ -70,7 +71,11 @@ class Gif
           image_data: image_data,
         }
         @tail.push data
+
         bits = bits[data[:image_data][:total_block_size]..-1]
+      else
+        puts "Unknown block header: #{bits[0..7]}"
+        raise "Error"
       end
     end
   end
@@ -105,6 +110,19 @@ class Gif
     }
   end
 
+  def graphics_control_extension_builder block
+    bit_string = block[:extension_introducer]
+    bit_string += block[:label]
+    bit_string += block[:byte_size]
+    bit_string += block[:packed_field][:reserved_for_future_use]
+    bit_string += block[:packed_field][:disposal_method]
+    bit_string += block[:packed_field][:user_input_flag]
+    bit_string += block[:packed_field][:transparent_color_flag]
+    bit_string += block[:delay_time]
+    bit_string += block[:transparent_colour_index]
+    bit_string += block[:block_terminator]
+  end
+
   def sub_blocks_parser bits
     sub_blocks = []
     while (bits[0..7] != "00000000")
@@ -121,16 +139,26 @@ class Gif
   def extension_parser bits
     data = {
       extension_introducer: bits[0..7],
-      label: bits[7..15],
+      label: bits[8..15],
       skipped_block_length: bits[16..23],
+      skipped_bits: bits[24..((8 * bits[16..23].to_i(2)) + 23)],
       sub_blocks: [],
       total_block_size: 0,
     }
     b_size = 24 + (8 * data[:skipped_block_length].to_i(2))
     bits = bits[b_size..-1]
     data[:sub_blocks] = sub_blocks_parser bits
-    data[:total_block_size] = 24 + data[:sub_blocks].join.size
+    data[:total_block_size] = 24 + data[:skipped_bits].size + data[:sub_blocks].join.size
     data
+  end
+
+  def extension_builder block
+    bit_string = block[:extension_introducer]
+    bit_string += block[:label]
+    bit_string += block[:skipped_block_length]
+    bit_string += block[:skipped_bits]
+    block[:sub_blocks].each { |sb| bit_string += sb }
+    bit_string
   end
 
   # Comment Extension
@@ -138,7 +166,7 @@ class Gif
   def comment_extension_parser bits
     data = {
       extension_introducer: bits[0..7],
-      label: bits[7..15],
+      label: bits[8..15],
       sub_blocks: [],
       total_block_size: 0,
     }
@@ -146,6 +174,13 @@ class Gif
     data[:sub_blocks] = sub_blocks_parser bits
     data[:total_block_size] = 16 + data[:sub_blocks].join.size
     data
+  end
+
+  def comment_extension_builder block
+    bit_string = block[:extension_introducer]
+    bit_string += block[:label]
+    block[:sub_blocks].each { |sb| bit_string += sb }
+    bit_string
   end
 
   # Image Descriptor
@@ -168,6 +203,19 @@ class Gif
     }
   end
 
+  def image_descriptor_builder block
+    bit_string = block[:image_separator]
+    bit_string += block[:image_left]
+    bit_string += block[:image_top]
+    bit_string += block[:image_width]
+    bit_string += block[:image_height]
+    bit_string += block[:packed_field][:local_color_table_flag]
+    bit_string += block[:packed_field][:interlace_flag]
+    bit_string += block[:packed_field][:sort_flag]
+    bit_string += block[:packed_field][:reserved_for_future_use]
+    bit_string += block[:packed_field][:size_of_local_color_table]
+  end
+
   def image_data_parser bits
     data = {
       lzw_minimum_code_size: bits[0..7],
@@ -178,6 +226,12 @@ class Gif
     data[:sub_blocks] = sub_blocks_parser bits
     data[:total_block_size] = 8 + data[:sub_blocks].join.size
     data
+  end
+
+  def image_data_builder block
+    bit_string = block[:lzw_minimum_code_size]
+    block[:sub_blocks].each { |sb| bit_string += sb }
+    bit_string
   end
 
   def rebuild new_file_name
