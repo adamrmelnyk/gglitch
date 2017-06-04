@@ -166,7 +166,7 @@ class Gif
   def comment_extension_parser bits
     data = {
       extension_introducer: bits[0..7],
-      label: bits[7..15],
+      label: bits[8..15],
       sub_blocks: [],
       total_block_size: 0,
     }
@@ -177,7 +177,10 @@ class Gif
   end
 
   def comment_extension_builder block
-    # TODO: fill out
+    s = block[:extension_introducer]
+    s += block[:label]
+    block[:sub_blocks].each { |sb| s += sb }
+    s
   end
 
   # Image Descriptor
