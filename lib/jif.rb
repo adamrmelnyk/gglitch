@@ -135,7 +135,7 @@ module Jif
           transparent_color_flag: bits[31]
         },
         delay_time: bits[32..47],
-        transparent_colour_index: bits[48..55],
+        transparent_color_index: bits[48..55],
         block_terminator: bits[56..63],
         total_block_size: 64
       }
@@ -150,7 +150,7 @@ module Jif
       bit_string += block[:packed_field][:user_input_flag]
       bit_string += block[:packed_field][:transparent_color_flag]
       bit_string += block[:delay_time]
-      bit_string += block[:transparent_colour_index]
+      bit_string += block[:transparent_color_index]
       bit_string += block[:block_terminator]
     end
 

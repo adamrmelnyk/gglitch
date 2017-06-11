@@ -33,6 +33,80 @@ g.rebuild('myNewGif.gif')
 g.rebuild # Defaults to out.gif
 ```
 
+Gif objects have the following structure:
+
+```ruby
+{
+  header,
+  logical_screen_descriptor,
+  global_color_table, # If the global_color_table_flag
+  tail # An array of hashes containing either extension or image data blocks
+}
+```
+
+### Extensions:
+
+#### Graphics Control Extension
+
+```ruby
+{
+    extension_introducer,
+    label, # 0xF9 or 1111 1001
+    byte_size,
+    packed_field,
+    delay_time,
+    transparent_color_index,
+    block_terminator,
+    total_block_size
+}
+```
+
+#### Plain Text (uncommmon) and Application Extensions (common)
+
+```ruby
+{
+    extension_introducer,
+    label, # 0x01 || 0xFF or 0000 0001 || 1111 1111
+    skipped_block_length,
+    skipped_bits,
+    sub_blocks, # refer to the GIF89a spec for more detailed information
+    total_block_size # total number of bits
+}
+```
+
+#### Comment Extension
+
+```ruby
+{
+    extension_introducer,
+    label, # 0xFE or 1111 1110
+    sub_blocks,
+    total_block_size
+}
+```
+
+### Image Descriptor and Data
+
+```ruby
+{
+    image_descriptor: {
+        image_separator, # 0x2C or 0010 1101
+        image_left,
+        image_top,
+        image_width,
+        image_height,
+        packed_field,
+        total_block_size
+    },
+    local_color_table, # If the local_color_table_flag is present in the previous packed field
+    image_data: {
+        lzw_minimum_code_size,
+        sub_blocks,
+        total_block_size
+    }
+}
+```
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
