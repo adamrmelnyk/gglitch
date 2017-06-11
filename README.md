@@ -1,6 +1,6 @@
 # Jif
 
-Analyzer and editor for the GIF89a format written in Ruby without external dependencies. Information about the GIF89a spec can be found [here](https://www.w3.org/Graphics/GIF/spec-gif89a.txt)
+Analyzer and editor for the GIF89a format written in Ruby without external dependencies. Information about the GIF89a spec can be found [here](https://www.w3.org/Graphics/GIF/spec-gif89a.txt). This gem was made largely as an experiment to edit files on a bit level without breaking them. Consuming this gem currently requires knowledge of the format to be able to change the file without rendering the file unreadable.
 
 ## Installation
 
@@ -39,7 +39,10 @@ Gif objects have the following structure:
 {
   header,
   logical_screen_descriptor,
-  global_color_table, # If the global_color_table_flag
+  packed_field,
+  background_color_index,
+  pixel_aspect_ratio,
+  global_color_table, # If the global_color_table_flag located in the packed field of the LSD is set
   tail # An array of hashes containing either extension or image data blocks
 }
 ```
