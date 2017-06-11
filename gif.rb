@@ -74,8 +74,7 @@ class Gif
 
         bits = bits[data[:image_data][:total_block_size]..-1]
       else
-        puts "Unknown block header: #{bits[0..7]}"
-        raise "Error"
+        raise "Error: Unknown block header: #{bits[0..7]}"
       end
     end
   end
@@ -234,8 +233,31 @@ class Gif
     bit_string
   end
 
-  def rebuild new_file_name
-    # TODO: Create a gif using the gif data
+  def rebuild(new_file_name="out.gif")
+    bit_string = @header
+    bit_string += @logical_screen_descriptor
+    bit_string += @global_color_table if @global_color_table
+    @tail.each do |block|
+      if block[:image_descriptor]
+        bit_string += image_descriptor_builder block[:image_descriptor]
+        bit_string += block[:local_color_table] if block[:local_color_table]
+        bit_string += image_data_builder block[:image_data]
+      elsif block[:extension_introducer]
+        case block[:label]
+        when GRAPHICS_CONTROL_EXTENSION_LABEL
+          bit_string += graphics_control_extension_builder block
+        when PLAIN_TEXT_LABEL, APPLICATION_EXTENSION_LABEL
+          bit_string += extension_builder block
+        when COMMENT_EXTENSION_LABEL
+          bit_string += comment_extension_builder block
+        end
+      else
+        raise "Error: Unknown block header: #{bits[0..7]}"
+      end
+    end
+    File.open(new_file_name, 'wb') do |out|
+      out.write [bit_string].pack("B*")
+    end
   end
 
   # For Testing
