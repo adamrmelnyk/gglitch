@@ -43,4 +43,17 @@ RSpec.describe Jif do
       expect(image_data[:sub_blocks].last).to eq "00000000"
     end
   end
+
+  describe "#rebuild" do
+    let(:gif) { Jif::Gif.new('spec/test.gif') }
+
+    it "rebuilds the gif correctly" do
+      s = File.binread('spec/test.gif')
+      original_bits = s.unpack("B*")[0]
+      gif.rebuild
+      s2 = File.binread('out.gif')
+      after_bits = s2.unpack("B*")[0]
+      expect(after_bits).to eq original_bits
+    end
+  end
 end

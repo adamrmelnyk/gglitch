@@ -104,6 +104,7 @@ module Jif
           raise "Error: Unknown block header: #{bits[0..7]}"
         end
       end
+      bit_string += GIF_TRAILER
       File.open(new_file_name, 'wb') do |out|
         out.write [bit_string].pack("B*")
       end
