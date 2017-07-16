@@ -42,18 +42,40 @@ RSpec.describe Jif do
       expect(image_data[:lzw_minimum_code_size]).to eq "00001000"
       expect(image_data[:sub_blocks].last).to eq "00000000"
     end
+
+    it "has a graphics control extension" do
+      sample_packed_field = {
+        reserved_for_future_use: "000",
+        disposal_method: "001",
+        user_input_flag: "0",
+        transparent_color_flag: "0"
+      }
+      graphics_control_extension = gif.tail[0]
+      expect(graphics_control_extension[:extension_introducer]).to eq "00100001"
+      expect(graphics_control_extension[:label]).to eq "11111001"
+      expect(graphics_control_extension[:delay_time]).to eq "0000101000000000"
+      expect(graphics_control_extension[:packed_field]).to eq sample_packed_field
+      expect(graphics_control_extension[:total_block_size]).to eq 64
+    end
   end
 
   describe "#rebuild" do
     let(:gif) { Jif::Gif.new('spec/test.gif') }
+    let(:original_bits) { File.binread('spec/test.gif').unpack("B*")[0]}
 
-    it "rebuilds the gif correctly" do
-      s = File.binread('spec/test.gif')
-      original_bits = s.unpack("B*")[0]
+    it "rebuilds without changes produces the same gif" do
       gif.rebuild
-      s2 = File.binread('out.gif')
-      after_bits = s2.unpack("B*")[0]
+      after_bits = File.binread('out.gif').unpack("B*")[0]
       expect(after_bits).to eq original_bits
+    end
+
+    it "rebuilding with changes produces a different gif" do
+      image_sub_block = gif.tail[2][:image_data][:sub_blocks][2].split("")
+      image_sub_block[50] = image_sub_block[50] == "1" ? "0" : "1"
+      gif.tail[2][:image_data][:sub_blocks][2] = image_sub_block.join
+      gif.rebuild
+      after_bits = File.binread('out.gif').unpack("B*")[0]
+      expect(after_bits).not_to eq original_bits
     end
   end
 end
