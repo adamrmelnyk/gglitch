@@ -29,8 +29,11 @@ g = Jif::Gif.new('myTestGif.gif')
 Make any changes you want and rebuild
 
 ```ruby
+image_sub_block = g.tail[2][:image_data][:sub_blocks][2].split("")
+image_sub_block[50] = "0"
+g.tail[2][:image_data][:sub_blocks][2] = image_sub_block.join
 g.rebuild('myNewGif.gif')
-g.rebuild # Defaults to out.gif
+g.rebuild # Defaults to out.gif if no filename is given
 ```
 
 Gif objects have the following structure:
